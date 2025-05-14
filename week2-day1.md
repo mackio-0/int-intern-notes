@@ -144,3 +144,108 @@
 ## Nginx Load Balancer
 
 ## HAProxy
+
+* [Digital Ocean Intro to HAProxy and load balancing concepts](https://www.digitalocean.com/community/tutorials/an-introduction-to-haproxy-and-load-balancing-concepts)
+* [Digital Ocean Intro to networking terminology interfaces and protocols](https://www.digitalocean.com/community/tutorials/an-introduction-to-networking-terminology-interfaces-and-protocols#protocols)
+
+HA Proxy (High Availablability Proxy) server is free, open-source software that provides high availability, load balancing for web servers, databases, and other services and proxying TCP and HTTP-based (Layer 4 and Layer 7) applications.
+
+### Types of Proxying
+
+#### Layer 4 (TCP): HAProxy can operate at the transport layer (TCP/IP). This allows it to load balance any TCP-based application, not just web applications. Examples include databases, SSH, and other custom protocols
+
+#### Layer 7 (HTTP/HTTPS): HAProxy has deep understanding of the HTTP protocol. This enables more advanced features like
+
+* Content Switching: Routing requests based on the URL, HTTP headers, or other content of the request. For example, you could route requests to /api to a different set of servers than requests to /images.
+* SSL/TLS Termination: HAProxy can handle the SSL/TLS encryption and decryption, offloading this CPU-intensive task from your backend servers. This also simplifies certificate management.
+* HTTP Header Manipulation: Adding, modifying, or removing HTTP headers.
+* Caching: HAProxy can cache static content, reducing the load on your backend servers and improving response times.
+* Compression: Compressing HTTP responses to reduce bandwidth usage.
+* Rate Limiting: Controlling the number of requests from a specific client to prevent abuse.
+* Web Application Firewall (WAF) Integration: While not a full-fledged WAF itself, HAProxy can integrate with WAFs to provide an extra layer of security.
+
+### HAProxy Configuration
+
+Configuration is done on a plain text config file in `/etc/haproxy/haproxy.cfg`.
+THere are 5 sections in HAProxy config file:
+
+1. global - global setting
+2. defaults - default setting for frontends and backends
+3. frontend - defines how HAProxy listens for client connections (IP address, port, protocols)
+4. backend -  Defines a group of backend servers and the load balancing algorithm.
+5. listen - Combines the functionality of frontend and backend in a single section.
+
+### Monitoring and statistics
+
+HAProxy provides detailed statistics about its performance and the status of backend servers and the traffic it's handling. You can access these statistics using the HAProxy stats interface configured in the `/etc/haproxy/haproxy.cfg` file. It can log detailed information about the requests it's handling, including the time it takes to process each request, the status code returned, and other relevant information. It can also integrate with other monitoring tools like Prometheus, Granfa and others.
+
+### Use Cases
+
+* Web Application Load Balancing: Distributing traffic across multiple web servers (e.g., Apache, Nginx).
+* API Load Balancing: Scaling and ensuring the availability of your APIs.
+* Database Load Balancing: Distributing read/write operations across multiple database servers.
+* SSL Termination: Offloading SSL encryption/decryption from backend servers.
+* Content Switching: Routing different parts of your application to different server pools.
+
+### Set up
+
+1. Install HAProxy on your server and open config file `/etc/haproxy/haproxy.cfg`.
+
+    ```bash
+    global
+    log /dev/log    local0
+    log /dev/log    local1 notice
+    chroot /var/lib/haproxy
+    user haproxy
+    group haproxy
+    daemon
+
+    maxconn 2000
+
+    stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+
+    defaults
+        log global
+        mode http
+        option httplog
+        option dontlognull
+        timeout connect 5000
+        timeout client  50000
+        timeout server  50000
+        errorfile 400 /etc/haproxy/errors/400.http
+        errorfile 403 /etc/haproxy/errors/403.http
+        errorfile 408 /etc/haproxy/errors/408.http
+        errorfile 500 /etc/haproxy/errors/500.http
+        errorfile 502 /etc/haproxy/errors/502.http
+        errorfile 503 /etc/haproxy/errors/503.http
+        errorfile 504 /etc/haproxy/errors/504.http
+
+    frontend http-in
+        bind *:80
+        default_backend nginx-servers
+
+    backend nginx-servers
+        balance roundrobin
+        server web1 127.0.0.1:80 check
+        server web2 127.0.0.1:8899 check
+        server web3 127.0.0.1:8989 check
+
+    listen stats
+        bind *:8080 
+        mode http
+        stats enable
+        stats uri /haproxy-stats
+        stats realm Haproxy\ Statistics
+        stats auth admin:your_secure_password # Replace with a strong password
+    ```
+
+    HA proxy will listen on http port 80 and distribute traffic to Nginx instances on port 8899 and 8989. Round robin load balancing is used to distribute traffic between the two Nginx instances.
+
+2. Restart HAProxy and enable it to start on boot:
+
+    ```bash
+    sudo systemctl restart haproxy
+    sudo systemctl enable haproxy
+    ```
+
+3. Check the webpage on `http://192.168.2.131`, it will be cycling through the two Nginx instances

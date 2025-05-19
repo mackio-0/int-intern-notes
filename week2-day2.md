@@ -124,10 +124,6 @@ HAProxy can save a cookie in the user's browser to remember which server to send
 
 2. Run `sudo systemctl restart haproxy` and check the webpage on `http://haproxy_host_macine_ip` on two or more machines(VMs).
 
-## MISC
-
-* `hostnamectl` - see details about the system
-
 ### VM IP addresses and DHCP
 
 Normally, VMs will be with NAT network adapters. If you want to access them from the host machine, you need to add another network adapter and enable **DHCP** server to give them a static IP address.
@@ -181,3 +177,7 @@ In VMware,
     ipv4.dns <DNS1,DNS2,...> \
     ipv4.route-metric <Metric>
     ```
+
+## MISC
+
+* `hostnamectl` - see details about the system
